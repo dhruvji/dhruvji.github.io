@@ -15,8 +15,9 @@
             font-size: 19px;
             padding: 0 10px;
             margin: 50px auto;
-            max-width: 900px;
+            max-width: 880px;
             font-family: 'EB Garamond', serif;
+            position: relative;
         }
         #maincontent { 
             max-width: 42em;
@@ -26,6 +27,19 @@
             display: flex;
             align-items: flex-start;
             margin-top: 160px;
+        }
+        #blogLink {
+            position: absolute;
+            top: 0;
+            left: 20;
+            margin: 20px;
+            font-size: 19px;
+            color: #ADD8E6;
+            text-decoration: none;
+            font-family: 'EB Garamond', serif;
+        }
+        #blogLink:hover {
+            text-decoration: underline;
         }
         a {
             color: #ADD8E6; 
@@ -58,7 +72,6 @@
             margin-top: 50px;
             padding-left: 7.5%;
             text-align: left;
-            max-width: none;
         }
         @media (max-width: 600px) {
             #imagecontent {
@@ -84,9 +97,13 @@
     </style>
 </head>
 <body>
+<!-- <a id="blogLink" href="blogs.html">Blogs</a> -->
 <div id="imagecontent">
     <div id="maincontent">     
-        <h1>Dhruv Gautam 🧸</h1>
+        <h1>Dhruv Gautam 🧸 
+            <a href="blogs.html" style="margin-right: 6px; font-size: 16px;">Blogs</a>
+            <a href="https://scholar.google.com/citations?user=UzDpwXwAAAAJ&hl=en" style="font-size: 16px;">Google Scholar</a>
+        </h1>          
         <p>Hi! I'm an undergrad at UC Berkeley studying Computer Science. </p>
         <h3>My Current Interests Include:</h3>
         <ul>
