@@ -50,8 +50,18 @@
         p { margin: 0 0 12px 0; }
         ul { margin: 8px 0 0 20px; padding: 0; }
         li { margin: 0 0 6px 0; }
-        a { color: var(--link); text-decoration: underline; }
-        a:hover { text-decoration: underline; }
+        a {
+            color: var(--link);
+            text-decoration: underline;
+            border-radius: 4px;
+            transition: background-color 0.18s ease, box-shadow 0.18s ease;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+        }
+        a:hover,
+        a:focus-visible {
+            background-color: rgba(0, 0, 0, 0.08);
+        }
         .links-row a { display: inline-block; margin-right: 12px; }
         .section { margin-top: 44px; }
         .profile {

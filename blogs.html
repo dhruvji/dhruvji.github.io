@@ -52,9 +52,14 @@
         a {
             color: var(--link);
             text-decoration: underline;
+            border-radius: 4px;
+            transition: background-color 0.18s ease, box-shadow 0.18s ease;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
         }
-        a:hover {
-            text-decoration: underline;
+        a:hover,
+        a:focus-visible {
+            background-color: rgba(0, 0, 0, 0.08);
         }
         .meta {
             font-size: 13px;
