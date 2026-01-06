@@ -1,16 +1,124 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta http-equiv="refresh" content="0; url=/routing">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="canonical" href="/routing">
-  <title>Redirecting…</title>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Routing is quickly becoming a necessity to be at the frontier - Dhruv Gautam</title>
+    <link rel="icon" type="image/png" href="teddy-bear_1f9f8.png">
+    <style>
+        :root {
+            --bg: #f8fff4;
+            --fg: #000000;
+            --link: #000000;
+        }
+        html, body {
+            height: 100%;
+        }
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+            font-size: 15.5px;
+            line-height: 1.5;
+            margin: 0;
+        }
+        .wrap {
+            max-width: 580px;
+            margin-left: 180px;
+            padding: 96px 24px 120px 24px;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0 0 16px 0;
+        }
+        h3 {
+            font-size: 16px;
+            margin: 32px 0 12px 0;
+        }
+        p {
+            margin: 0 0 12px 0;
+        }
+        a {
+            color: var(--link);
+            text-decoration: underline;
+            border-radius: 4px;
+            transition: background-color 0.18s ease, box-shadow 0.18s ease;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+        }
+        a:hover,
+        a:focus-visible {
+            background-color: rgba(0, 0, 0, 0.08);
+        }
+        .page-head {
+            margin-bottom: 32px;
+        }
+        .eyebrow {
+            font-size: 13px;
+            letter-spacing: 0.04em;
+            text-transform: uppercase;
+            margin-bottom: 8px;
+        }
+        .dek {
+            margin-top: 16px;
+            font-style: italic;
+        }
+        .content ol {
+            margin: 0 0 16px 20px;
+            padding: 0;
+        }
+        .content li {
+            margin-bottom: 8px;
+        }
+        footer {
+            margin-top: 48px;
+        }
+        sup a {
+            padding: 0;
+        }
+        @media (max-width: 820px) {
+            .wrap { margin-left: 8vw; padding-top: 64px; }
+        }
+        @media (max-width: 560px) {
+            .wrap { margin-left: 20px; padding-right: 20px; }
+        }
+    </style>
 </head>
 <body>
-  <p>Redirecting to <a href="/routing">/routing</a>…</p>
-  <script>
-    location.replace("/routing");
-  </script>
+<main class="wrap">
+    <header class="page-head">
+        <div class="eyebrow">July 20, 2025 · ~4 min</div>
+        <h1>Routing is quickly becoming a necessity to be at the frontier</h1>
+        <p class="dek">Model routing is really important in the age of sparse RL data.</p>
+    </header>
+    <article class="content">
+        <p>A recent trend in machine learning is that frontier models are being trained specifically for the task they are being tested on, uniquely because these tasks are economically valuable! It doesn’t matter if the model generalizes perfectly to some OOD example, the model should just be good at the task consumers care about downstream. This is particularly feasible because of RLVR finally working with LLMs, where model trainers can use specific tasks that are verifiable<sup><a href="#note1">1</a></sup> and the models learn to maximize reward (solving the task) through long chains of thought (thinking). However, in the current paradigm of thinking models, verifiable data is hard to come by, with many companies quickly trying to replicate the datasets that frontier labs are using. It's quick to realize that, after acquiring all the low hanging fruit on the internet, many of these model developers will start acquiring different RL data based on what their employees aim to train on<sup><a href="#note2">2</a></sup>, and this data will continue to diverge with labs locking down different contracts with big enterprises. </p>
+
+        <p>As a little proof of existence, unique thinking abilities stemming from different frontier models have already been emerging in many agent use-cases, with companies on the application layer aiming to discover new solutions by <a href="https://xbow.com/blog/alloy-agents/">interleaving models to find the strongest performance</a>. This trivial solution of just using multiple models works for agents, but how does one optimize over these unique thinking properties for single-prompt uses of LLMs? This is especially tough as we don’t know the exact tasks each frontier LLM is trained on<sup><a href="#note3">3</a></sup>. </p>
+
+        <p>Benchmarks are the most trivial solution for this problem, where application devs create their own internal benchmarks that reflect the real performance of different models on consumer tasks. In this setup, users quickly choose the model based on their self-assigned understanding. However, this manual selection becomes complex and quickly breaks down as a process when user tasks are not easily groupable / are at the frontier end of performance. In my opinion, this problem of divergence will be inevitable and more terse in the near future, and model routing is the clear solution for this. Model routing is where one can send prompts to different models, decided through preference data, optimizing for performance on some desired metric. Currently, routing is often used as a means to <a href="https://lmsys.org/blog/2024-07-01-routellm/ ">recover performance compared to a frontier model using smaller models</a>, largely to save inference costs, and not solely optimizing for intelligent outputs. </p>
+
+        <p>What I’m really excited to see in the next few months is if someone can exploit these newly forming performance differences from RL data to outperform a singular frontier model's performance across uniquely different tasks (not just across benchmarks) in the single-shot setting. This would be hard, because it involves having preference data scattered across tasks while also serving these frontier models on these tasks at reasonable amounts. Another interesting direction would be to be able to route over subtleties within a task domain<sup><a href="#note4">4</a></sup>, something that agent developers have been relying on heuristics for. </p>
+
+        <p>However, preference data and training routers isn’t an instant process. In the long run, with continually improving models<sup><a href="#note5">5</a></sup>, A/B testing with human users will likely not be 1. Fast enough or 2. Precise enough to really unlock top performance. With the large amounts of money on the table (these companies are trying to automate chunks of GDP) and the lack of lock-in that most of these companies have, I believe the top AI-integrated platforms will have to create “user agents” that test their own application, bootstrapping on the preference data collected. This connects back to my previous post on the investigator agents and multi-faceted nature of next-token prediction.</p>
+
+        <p>Another interesting line of research is whether routing can be baked into a model. GPT-5 may just be a ton of different models with great routing behavior, possibly even curriculum learnt over the course of training so the “types” of underlying models cover the full distribution of user prompts. MoE is a simple version of this idea, but the routing mechanism would likely need to become more and more complex over time if models are trained separately. However, as I believe frontier labs will end up with different RL data, I don’t think this internal routing solution would be enough to stay at the frontier across all dimensions. In fact, it would be hilarious, but not too surprising if a big winner in the AI space was a wrapper that simply routed perfectly between frontier models on behalf of application layer companies.</p>
+
+        <h3>Notes</h3>
+        <ol>
+            <li id="note1">This is based on my understanding of open-source, all the self-rating / entropy / intrinsic eval stuff seems to be either done only on Qwen, a bias from GRPO, or just non-reproducible on large scales. However, OpenAI and DeepMind's IMO results does make me question how to do that well / think that long without being able to generate synthetic problems on the fly that are past model capabilities. Maybe it’s all just scrapable like AlphaProof, but generalist behaviors wouldn’t emerge from that? Anyways sticking to verifiable as the base assumption in this post.</li>
+            <li id="note2">Or even just what their employees understand. Unless people find more generalizable ways to leverage RL, even <a href="https://youtu.be/64lXQP6cs5M?si=RjfQgOWiPauESPt3&t=4031">employees in the frontier labs</a> think that the tasks their models will be able to solve are the ones they strictly optimize for.</li>
+            <li id="note3">Model diffing is a really interesting line of research that aims to understand “properties” of models, but will likely be hard to do robustly in the black-box setup from just APIs.</li>
+            <li id="note4">This can likely be done decently well simply with just a ton of preference data, which is something I think Cursor is likely trying to test out with their “Auto” mode for their agent. Or they are just facing issues from serving capacity. But they should do this because even frontier labs don’t have as good data of people arguing over such specialized tasks, albeit only in coding.</li>
+            <li id="note5">And models being the primary users of other models. These models might soon be changing faster than the monthly updates providers currently put out.</li>
+        </ol>
+    </article>
+    <footer>
+        <p><a href="blogs.html">← Back to all writing</a></p>
+        <p><a href="index.html">Return home</a></p>
+    </footer>
+</main>
 </body>
 </html>
