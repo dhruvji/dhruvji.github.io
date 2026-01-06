@@ -60,6 +60,15 @@
             gap: 2px;
             margin: 0 0 12px 0;
         }
+        .title-links {
+            margin-left: auto;
+            display: flex;
+            gap: 12px;
+            font-size: 13px;
+        }
+        .title-links a {
+            text-decoration: underline;
+        }
         .theme-toggle {
             display: inline-flex;
             align-items: center;
@@ -93,7 +102,7 @@
             margin: 40px 0 12px 0;
         }
         p { margin: 0 0 12px 0; }
-        ul { margin: 8px 0 0 20px; padding: 0; }
+        ul { margin: 8px 0 0 0; padding: 0; list-style: none;}
         li { margin: 0 0 6px 0; }
         a {
             color: var(--link);
@@ -109,11 +118,22 @@
         }
         .links-row a { display: inline-block; margin-right: 12px; }
         .section { margin-top: 44px; }
+        .two-col {
+            display: flex;
+            gap: 32px;
+            align-items: flex-start;
+            width: 100%;
+        }
+        .two-col .section {
+            flex: 1;
+            margin-top: 20px;
+        }
         @media (max-width: 820px) {
             .wrap { margin-left: 8vw; padding-top: 64px; gap: 32px; }
         }
         @media (max-width: 560px) {
             .wrap { margin-left: 20px; padding-right: 20px; flex-direction: column; }
+            .two-col { flex-direction: column; gap: 0; }
         }
     </style>
 </head>
@@ -127,6 +147,10 @@
                     <path d="M21.4 14.7A9 9 0 0 1 9.3 2.6 9 9 0 1 0 21.4 14.7Z"></path>
                 </svg>
             </button>
+            <nav class="title-links" aria-label="Primary">
+                <a href="blogs.html">Thoughts</a>
+                <a href="https://scholar.google.com/citations?user=UzDpwXwAAAAJ&hl=en">Research</a>
+            </nav>
         </header>
 
         <section class="intro">
@@ -134,24 +158,27 @@
             <p>I currently spend my time researching at <a href="https://bair.berkeley.edu/">BAIR</a> and the <a href="https://arcinstitute.org/">Arc Institute</a>. I also work on creative ML projects with friends in <a href="https://launchpad.berkeley.edu/">Launchpad</a> and explore cryptography with friends in <a href="https://blockchain.studentorg.berkeley.edu/">Blockchain at Berkeley</a>. Previously, I've worked at <a href="https://www.microsoft.com/en-us/research/group/dataai/">Microsoft's Developer Division</a> on post-training, code generation, and agents, and in a couple groups within Berkeley's <a href="https://sky.cs.berkeley.edu/">SkyLab</a> on consensus and distributed systems.</p>
         </section>
 
-        <section class="section">
-            <h2>Interests</h2>
-            <ul>
-                <li>AI for Science</li>
-                <li>Code Generation</li>
-                <li>Reinforcement Learning</li>
-                <li>Synthetic Data</li>
-                <li>Neural Network Intepretability</li>
-                <li>Fresh Expo Markers</li>
-            </ul>
-        </section>
+        <div class="two-col">
+            <section class="section">
+                <h2>Interests</h2>
+                <ul>
+                    <li>AI for Science</li>
+                    <li>Code Generation</li>
+                    <li>Synthetic Data</li>
+                    <li>Reinforcement Learning</li>
+                    <li>Neural Network Intepretability</li>
+                    <li>Fresh Expo Markers</li>
+                </ul>
+            </section>
 
-        <section class="section">
-            <h2>Contact</h2>
-            <p><a href="mailto:dhruvgautam (at) berkeley (dot) edu">dhruvgautam (at) berkeley (dot) edu</a></p>
-            <p>Twitter: <a href="https://twitter.com/dhrvji">@dhrvji</a></p>
-            <p class="links-row"><a href="blogs.html">Blogs</a><a href="https://scholar.google.com/citations?user=UzDpwXwAAAAJ&hl=en">Google Scholar</a></p>
-        </section>
+            <section class="section">
+                <h2>Contact</h2>
+                <ul>
+                    <li><a href="mailto:dhruvgautam (at) berkeley (dot) edu">dhruvgautam (at) berkeley (dot) edu</a></li>
+                    <li><a href="https://twitter.com/dhrvji">@dhrvji</a></li>
+                </ul>
+            </section>
+        </div>
 
         <!-- Publications stub kept commented for now to match minimal layout -->
         <!--
