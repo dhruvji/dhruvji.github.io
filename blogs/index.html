@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Blogs - Dhruv Gautam</title>
+    <link rel="icon" type="image/png" href="teddy-bear_1f9f8.png">
+    <style>
+        :root {
+            --bg: #f8fff4;
+            --fg: #000000;
+            --link: #000000;
+        }
+        html, body {
+            height: 100%;
+        }
+        body {
+            background: var(--bg);
+            color: var(--fg);
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+            font-size: 15.5px;
+            line-height: 1.35;
+            margin: 0;
+        }
+        .wrap {
+            max-width: 540px;
+            margin-left: 180px;
+            padding: 96px 24px 120px 24px;
+        }
+        h1 {
+            font-size: 24px;
+            font-weight: 700;
+            margin: 0 0 28px 0;
+        }
+        h2 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 0 0 6px 0;
+        }
+        p {
+            margin: 0 0 8px 0;
+        }
+        .post {
+            margin-bottom: 32px;
+        }
+        .post small {
+            display: block;
+            color: rgba(0, 0, 0, 0.6);
+            margin-bottom: 3px;
+        }
+        a {
+            color: var(--link);
+            text-decoration: underline;
+            border-radius: 4px;
+            transition: background-color 0.18s ease, box-shadow 0.18s ease;
+            -webkit-box-decoration-break: clone;
+            box-decoration-break: clone;
+        }
+        a:hover,
+        a:focus-visible {
+            background-color: rgba(0, 0, 0, 0.08);
+        }
+        .meta {
+            font-size: 13px;
+        }
+        .nav {
+            margin-top: 48px;
+        }
+        @media (max-width: 820px) {
+            .wrap { margin-left: 8vw; padding-top: 64px; }
+        }
+        @media (max-width: 560px) {
+            .wrap { margin-left: 20px; padding-right: 20px; }
+        }
+    </style>
+</head>
+<body>
+<main class="wrap">
+    <header>
+        <h1>🧸 Thoughts</h1>
+    </header>
+
+    <section>
+        <div class="post">
+            <h2><a href="/routing">Routing is quickly becoming a necessity to be at the frontier</a></h2>
+            <small class="meta">July 20, 2025 · model routing is really important in the age of sparse RL data</small>
+        </div>
+        <div class="post">
+            <h2><a href="/next_token">Next-token prediction is more customizable than you think</a></h2>
+            <small class="meta">July 17, 2025 · two broad directions I think more people should apply next-token prediction to</small>
+        </div>
+        <div class="post">
+            <h2><a href="/mind_transform">Mind Transformations</a></h2>
+            <small class="meta">January 16, 2025 · recent late night thoughts about the human brain and predicting the effects of experiences</small>
+        </div>
+    </section>
+
+    <p class="nav"><a href="/">Return to Home</a></p>
+</main>
+</body>
+</html>
