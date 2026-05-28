@@ -6,11 +6,29 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Routing is quickly becoming a necessity to be at the frontier - Dhruv Gautam</title>
     <link rel="icon" type="image/png" href="teddy-bear_1f9f8.png">
+    <script>
+        (function () {
+            if (localStorage.getItem("theme") === "dark") {
+                document.documentElement.setAttribute("data-theme", "dark");
+            }
+        })();
+    </script>
     <style>
         :root {
             --bg: #f8fff4;
             --fg: #000000;
             --link: #000000;
+            --toggle-bg: transparent;
+            --toggle-fg: #000000;
+            --toggle-hover: rgba(0, 0, 0, 0.08);
+        }
+        [data-theme="dark"] {
+            --bg: #0f1111;
+            --fg: #f1f1f1;
+            --link: #f1f1f1;
+            --toggle-bg: transparent;
+            --toggle-fg: #f1f1f1;
+            --toggle-hover: rgba(255, 255, 255, 0.12);
         }
         html, body {
             height: 100%;
@@ -55,6 +73,41 @@
         .page-head {
             margin-bottom: 32px;
         }
+        .title-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin: 0 0 12px 0;
+        }
+        .back-link {
+            font-size: 13px;
+        }
+        .theme-toggle {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+            padding: 0;
+            border: 0;
+            border-radius: 999px;
+            background: var(--toggle-bg);
+            color: var(--toggle-fg);
+            cursor: pointer;
+            transition: background-color 0.18s ease, transform 0.18s ease;
+        }
+        .theme-toggle:hover,
+        .theme-toggle:focus-visible {
+            background: var(--toggle-hover);
+        }
+        .theme-toggle:active {
+            transform: scale(0.96);
+        }
+        .theme-toggle svg {
+            width: 17px;
+            height: 17px;
+            fill: currentColor;
+        }
         .eyebrow {
             font-size: 13px;
             letter-spacing: 0.04em;
@@ -88,6 +141,14 @@
 </head>
 <body>
 <main class="wrap">
+    <div class="title-row">
+        <a class="back-link" href="blogs.html">← Back to all writing</a>
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">
+            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M21.4 14.7A9 9 0 0 1 9.3 2.6 9 9 0 1 0 21.4 14.7Z"></path>
+            </svg>
+        </button>
+    </div>
     <header class="page-head">
         <div class="eyebrow">July 20, 2025 · ~4 min</div>
         <h1>Routing is quickly becoming a necessity to be at the frontier</h1>
@@ -120,5 +181,25 @@
         <p><a href="index.html">Return home</a></p>
     </footer>
 </main>
+<script>
+    (function () {
+        var root = document.documentElement;
+        var toggle = document.getElementById("theme-toggle");
+        var stored = localStorage.getItem("theme");
+        if (stored === "dark") {
+            root.setAttribute("data-theme", "dark");
+        }
+        toggle.addEventListener("click", function () {
+            var isDark = root.getAttribute("data-theme") === "dark";
+            if (isDark) {
+                root.removeAttribute("data-theme");
+                localStorage.setItem("theme", "light");
+            } else {
+                root.setAttribute("data-theme", "dark");
+                localStorage.setItem("theme", "dark");
+            }
+        });
+    })();
+</script>
 </body>
 </html>
