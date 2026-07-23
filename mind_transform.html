@@ -8,23 +8,13 @@
     <link rel="icon" type="image/png" href="teddy-bear_1f9f8.png">
     <script>
         (function () {
-            if (localStorage.getItem("theme") === "dark") {
-                document.documentElement.setAttribute("data-theme", "dark");
+            if (localStorage.getItem("theme") === "light") {
+                document.documentElement.setAttribute("data-theme", "light");
             }
         })();
     </script>
     <style>
         :root {
-            --bg: #f8fff4;
-            --fg: #000000;
-            --link: #000000;
-            --blockquote-bg: rgba(0, 0, 0, 0.06);
-            --blockquote-border: #000000;
-            --toggle-bg: transparent;
-            --toggle-fg: #000000;
-            --toggle-hover: rgba(0, 0, 0, 0.08);
-        }
-        [data-theme="dark"] {
             --bg: #0f1111;
             --fg: #f8fff4;
             --link: #f8fff4;
@@ -33,6 +23,16 @@
             --toggle-bg: transparent;
             --toggle-fg: #f8fff4;
             --toggle-hover: rgba(255, 255, 255, 0.12);
+        }
+        [data-theme="light"] {
+            --bg: #f8fff4;
+            --fg: #000000;
+            --link: #000000;
+            --blockquote-bg: rgba(0, 0, 0, 0.06);
+            --blockquote-border: #000000;
+            --toggle-bg: transparent;
+            --toggle-fg: #000000;
+            --toggle-hover: rgba(0, 0, 0, 0.08);
         }
         html, body {
             height: 100%;
@@ -112,6 +112,15 @@
             height: 17px;
             fill: currentColor;
         }
+        .theme-toggle .icon-moon {
+            display: none;
+        }
+        [data-theme="light"] .theme-toggle .icon-sun {
+            display: none;
+        }
+        [data-theme="light"] .theme-toggle .icon-moon {
+            display: block;
+        }
         .eyebrow {
             font-size: 13px;
             letter-spacing: 0.04em;
@@ -154,8 +163,11 @@
 <main class="wrap">
     <div class="title-row">
         <a class="back-link" href="blogs.html">← Back to all writing</a>
-        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle dark mode">
-            <svg viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+        <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light mode">
+            <svg class="icon-sun" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+                <path d="M12 17.5a5.5 5.5 0 1 1 0-11 5.5 5.5 0 0 1 0 11ZM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+            </svg>
+            <svg class="icon-moon" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
                 <path d="M21.4 14.7A9 9 0 0 1 9.3 2.6 9 9 0 1 0 21.4 14.7Z"></path>
             </svg>
         </button>
@@ -197,17 +209,20 @@
         var root = document.documentElement;
         var toggle = document.getElementById("theme-toggle");
         var stored = localStorage.getItem("theme");
-        if (stored === "dark") {
-            root.setAttribute("data-theme", "dark");
+        if (stored === "light") {
+            root.setAttribute("data-theme", "light");
+            toggle.setAttribute("aria-label", "Toggle dark mode");
         }
         toggle.addEventListener("click", function () {
-            var isDark = root.getAttribute("data-theme") === "dark";
-            if (isDark) {
+            var isLight = root.getAttribute("data-theme") === "light";
+            if (isLight) {
                 root.removeAttribute("data-theme");
-                localStorage.setItem("theme", "light");
-            } else {
-                root.setAttribute("data-theme", "dark");
                 localStorage.setItem("theme", "dark");
+                toggle.setAttribute("aria-label", "Toggle light mode");
+            } else {
+                root.setAttribute("data-theme", "light");
+                localStorage.setItem("theme", "light");
+                toggle.setAttribute("aria-label", "Toggle dark mode");
             }
         });
     })();
