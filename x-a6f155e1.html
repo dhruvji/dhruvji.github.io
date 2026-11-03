@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <meta name="robots" content="noindex, nofollow" />
-<title>study</title>
+<title>learning to remember</title>
 <style>
   :root {
     --paper: #F7F6F2; --ink: #1C1B19; --raw: #9A968C; --mem: #39483D; --amber: #E7B26C;
@@ -18,48 +18,22 @@
   .wrap { width: 100%; max-width: 1040px; }
   h1 {
     font-family: "EB Garamond", Garamond, "Iowan Old Style", Georgia, serif;
-    font-weight: 400; font-size: 40px; letter-spacing: -0.01em; margin: 0 0 6px;
+    font-weight: 400; font-size: 40px; letter-spacing: -0.01em; margin: 0 0 28px;
   }
-  .sub { color: #6b6860; margin: 0 0 28px; font-size: 15px; }
   .hero {
     position: relative; width: 100%; aspect-ratio: 16 / 9; overflow: hidden;
     cursor: crosshair; touch-action: pan-y; user-select: none;
   }
   .hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
   .hero canvas.overlay { pointer-events: none; }
-  .zones {
-    position: relative; height: 18px; margin-top: 12px;
-    font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: var(--raw);
-    letter-spacing: 0.02em;
-  }
-  .zones span { position: absolute; top: 0; white-space: nowrap; }
-  .zones .z1 { left: 0; }
-  .zones .z2 { left: 44%; }
-  .zones .z3 { left: 68%; }
-  .zones b { font-weight: 400; color: var(--mem); }
-  .key { margin-top: 18px; font: 11px ui-monospace, SFMono-Regular, Menlo, monospace; color: #8a877f; }
-  .key i { display: inline-block; width: 10px; height: 8px; margin: 0 4px 0 14px; vertical-align: 0; }
-  .key i:first-child { margin-left: 0; }
 </style>
 </head>
 <body>
 <div class="wrap">
-  <h1>Learning a workspace</h1>
-  <p class="sub">Read it, take notes, train what matters into memory.</p>
+  <h1>Learning to remember</h1>
   <div class="hero" id="hero">
     <canvas id="gl"></canvas>
     <canvas id="overlay" class="overlay"></canvas>
-  </div>
-  <div class="zones">
-    <span class="z1">workspace — emails · memos · sheets</span>
-    <span class="z2">notes</span>
-    <span class="z3">memory — <b id="epoch">epoch 000 · reward 0.000</b></span>
-  </div>
-  <div class="key">
-    <i style="background:var(--raw)"></i>unread
-    <i style="background:var(--amber)"></i>noted
-    <i style="background:var(--mem)"></i>in weights
-    &nbsp;&nbsp;— hover the workspace to read, hover memory to recall
   </div>
 </div>
 
@@ -91,7 +65,6 @@
   const hero = document.getElementById('hero');
   const canvas = document.getElementById('gl');
   const overlay = document.getElementById('overlay');
-  const epochEl = document.getElementById('epoch');
   const octx = overlay.getContext('2d');
 
   const gl = canvas.getContext('webgl2', {
@@ -598,7 +571,7 @@
   }
 
   // ---------------------------------------------------------------- loop
-  let raf = 0, running = false, last = 0, time = 0, run = 0, lastEpoch = -1;
+  let raf = 0, running = false, last = 0, time = 0, run = 0;
   const ptsBuf = new Float32Array(32);
   const marksBuf = new Float32Array(32);
 
@@ -639,11 +612,6 @@
     const phase = run - epoch * CFG.epochSec;
     const sweep = phase < 1.4 ? MEM_X0 + (phase / 1.4) * (MEM_X1 - MEM_X0) : -1;
     const prog = 0.3 + 0.64 * (1 - Math.exp(-run / 60));
-    if (epoch !== lastEpoch) {
-      lastEpoch = epoch;
-      const reward = 0.12 + 0.74 * (1 - Math.exp(-epoch / 10)) + (rand(epoch) - 0.5) * 0.04;
-      epochEl.textContent = `epoch ${String(epoch).padStart(3, '0')} · reward ${reward.toFixed(3)}`;
-    }
 
     updateNotes(pointer, v, dt, cssW, cssH);
 
