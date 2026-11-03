@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<meta name="robots" content="noindex, nofollow" />
+<title>ascii wave</title>
+<style>
+  :root { --bg: #F7F6F5; --ink: #000; }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--bg); color: var(--ink); }
+  body {
+    font: 15px/1.5 ui-sans-serif, system-ui, -apple-system, sans-serif;
+    display: flex; flex-direction: column; align-items: center;
+    padding: 48px 20px;
+  }
+  .wrap { width: 100%; max-width: 980px; }
+  h1 { font-weight: 300; font-size: 32px; letter-spacing: -0.02em; margin: 0 0 24px; }
+  .hero {
+    position: relative; width: 100%; aspect-ratio: 829 / 550; overflow: hidden;
+    cursor: crosshair; touch-action: pan-y; user-select: none;
+  }
+  .hero canvas { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
+  /* Blob overlay: white drawn with "difference" = auto-inverts over glyphs vs background */
+  .hero canvas.overlay { mix-blend-mode: difference; pointer-events: none; }
+  .caption { font: 12px ui-monospace, Menlo, monospace; color: #777; margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>ascii wave</h1>
+  <div class="hero" id="hero">
+    <canvas id="gl"></canvas>
+    <canvas id="overlay" class="overlay"></canvas>
+  </div>
+  <div class="caption">move your cursor across the field</div>
+</div>
+
+<script>
+(() => {
+  // ---------------------------------------------------------------- config
+  const CFG = {
+    cell: [6, 10],        // glyph cell size in CSS px (w, h)
+    bg: [0xF7, 0xF6, 0xF5],
+    ink: [0, 0, 0],
+    speed: 0.47,          // global time scale of the wave
+    lens: 0.14,           // barrel/projection strength
+    trailScale: 1 / 3,    // trail sim resolution relative to canvas
+    trailRadius: 0.05,    // in viewport-height units
+    trailDecay: 0.955,    // per 60Hz frame
+    displace: 0.06,       // how far the trail pushes the image
+    maxBlobs: 4,
+    autoplay: true,       // ghost cursor when idle
+    maxDpr: 2,
+  };
+
+  const hero = document.getElementById('hero');
+  const canvas = document.getElementById('gl');
+  const overlay = document.getElementById('overlay');
+  const octx = overlay.getContext('2d');
+
+  const gl = canvas.getContext('webgl2', {
+    antialias: false, alpha: false, depth: false, stencil: false,
+    desynchronized: true,            // low-latency canvas path where supported
+    powerPreference: 'high-performance',
+    preserveDrawingBuffer: false,
+  });
+  if (!gl) { hero.textContent = 'WebGL2 not supported'; return; }
+
+  const HDR = !!gl.getExtension('EXT_color_buffer_float');
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  // ---------------------------------------------------------------- shaders
+  const VERT = `#version 300 es
+  out vec2 vUv;
+  void main() {
+    vec2 p = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
+    vUv = p;
+    gl_Position = vec4(p * 2.0 - 1.0, 0.0, 1.0);
+  }`;
+
+  const CODEC = HDR ? `
+  vec3 dec(vec4 c) { return c.xyz; }
+  vec4 enc(vec3 v) { return vec4(v, 1.0); }` : `
+  vec3 dec(vec4 c) { return vec3(c.xy * 2.0 - 1.0, c.z); }
+  vec4 enc(vec3 v) { return vec4(v.xy * 0.5 + 0.5, v.z, 1.0); }`;
+
+  // Trail field: xy = velocity (dir * strength), z = density. Ping-ponged.
+  const TRAIL_FRAG = `#version 300 es
+  precision highp float;
+  in vec2 vUv; out vec4 o;
+  uniform sampler2D uPrev;
+  uniform vec2 uPts[16];
+  uniform int uN;
+  uniform float uAspect, uRadius, uDecay, uSpeed;
+  ${CODEC}
+  float sdSeg(vec2 p, vec2 a, vec2 b) {
+    vec2 pa = p - a, ba = b - a;
+    float h = clamp(dot(pa, ba) / max(dot(ba, ba), 1e-8), 0.0, 1.0);
+    return length(pa - ba * h);
+  }
+  void main() {
+    vec2 asp = vec2(uAspect, 1.0);
+    vec3 f = dec(texture(uPrev, vUv));
+    f = dec(texture(uPrev, vUv - f.xy * 0.006 / asp));  // self-advection
+    f *= uDecay;
+    for (int i = 0; i < 15; i++) {
+      if (i >= uN - 1) break;
+      vec2 a = uPts[i], b = uPts[i + 1];
+      vec2 mv = (b - a) * asp;
+      float L = length(mv);
+      if (L < 1e-6) continue;
+      float d = sdSeg(vUv * asp, a * asp, b * asp);
+      float w = exp(-(d * d) / (uRadius * uRadius));
+      f.xy = mix(f.xy, (mv / L) * uSpeed, w * 0.6);
+      f.z = max(f.z, w * uSpeed);
+    }
+    f.xy = clamp(f.xy, -1.0, 1.0);
+    f.z = clamp(f.z, 0.0, 1.0);
+    o = enc(f);
+  }`;
+
+  // Main pass: procedural wave -> projection -> trail displacement -> glyphs -> duotone.
+  const MAIN_FRAG = `#version 300 es
+  precision highp float;
+  out vec4 o;
+  uniform vec2 uRes, uCellPx;
+  uniform float uTime, uGlyphN, uLens, uAspect, uDisplace;
+  uniform sampler2D uTrail, uAtlas;
+  uniform vec3 uBg, uInk;
+  ${CODEC}
+
+  float h21(vec2 p) {
+    vec3 p3 = fract(vec3(p.xyx) * 0.1031);
+    p3 += dot(p3, p3.yzx + 33.33);
+    return fract((p3.x + p3.y) * p3.z);
+  }
+  float vn(vec2 p) {
+    vec2 i = floor(p), f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(h21(i), h21(i + vec2(1, 0)), f.x),
+               mix(h21(i + vec2(0, 1)), h21(i + 1.0), f.x), f.y);
+  }
+
+  // Brightness of a source cell. Alternating rows carry scrolling bars whose
+  // duty cycle is gated by slow diagonal bands; other cells get flickering noise.
+  float source(vec2 c, vec2 grid, float t) {
+    vec2 q = c / grid.y;
+    float row = c.y;
+    float w1 = sin(q.x * 4.0 - q.y * 6.0 + t * 1.1 + sin(q.y * 2.5 - t * 0.4) * 1.5);
+    float w2 = sin(q.x * 1.7 + q.y * 3.1 - t * 0.6);
+    float band = smoothstep(-0.2, 0.9, w1 * 0.7 + w2 * 0.3);
+
+    float isBarRow = step(0.5, mod(row, 2.0));
+    float rh = h21(vec2(row, 1.7));
+    float x = c.x + t * (4.0 + rh * 3.0) + row * 2.3;
+    float segLen = 5.0 + floor(h21(vec2(row, 9.1)) * 9.0);
+    float s = floor(x / segLen), f = fract(x / segLen);
+    float duty = mix(0.0, 0.85, band) * step(0.3, h21(vec2(s, row)));
+    float bar = isBarRow * step(f, duty);
+
+    float fl = h21(c + floor(t * 5.0 + rh * 10.0));
+    float dim = fl * (0.15 + 0.35 * band);
+    return max(bar, dim);
+  }
+
+  void main() {
+    vec2 fc = vec2(gl_FragCoord.x, uRes.y - gl_FragCoord.y);   // top-left origin
+    vec2 cellF = fc / uCellPx;
+    vec2 cellI = floor(cellF);
+    vec2 local = fract(cellF);
+    vec2 grid = uRes / uCellPx;
+    vec2 uv = (cellI + 0.5) / grid;                          // cell-center uv
+
+    // projection (barrel)
+    vec2 c = (uv - 0.5) * vec2(uAspect, 1.0);
+    float r2 = dot(c, c);
+    vec2 luv = 0.5 + (uv - 0.5) * (1.0 + uLens * r2) / (1.0 + uLens * 0.25);
+
+    // trail
+    vec3 tr = dec(texture(uTrail, vec2(uv.x, 1.0 - uv.y)));
+    vec2 vel = vec2(tr.x, -tr.y);
+    float dens = tr.z;
+    vec2 np = uv * vec2(uAspect, 1.0) * 14.0;
+    vec2 n = vec2(vn(np + uTime * 0.7), vn(np + 31.7 - uTime * 0.7)) - 0.5;
+    vec2 suv = luv - vel * uDisplace - n * dens * 0.08;
+
+    float t = uTime;
+    float l = source(floor(suv * grid), grid, t);
+    float sparkle = step(0.55, h21(cellI + floor(uTime * 24.0)));
+    l = max(l, dens * mix(0.25, 1.0, sparkle));
+    l = clamp(l, 0.0, 0.999);
+
+    float gi = floor(l * uGlyphN);
+    float cov = texture(uAtlas, vec2((gi + local.x) / uGlyphN, local.y)).r;
+    o = vec4(mix(uBg, uInk, cov), 1.0);
+  }`;
+
+  function compile(type, src) {
+    const s = gl.createShader(type);
+    gl.shaderSource(s, src); gl.compileShader(s);
+    if (!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+    return s;
+  }
+  function program(frag) {
+    const p = gl.createProgram();
+    gl.attachShader(p, compile(gl.VERTEX_SHADER, VERT));
+    gl.attachShader(p, compile(gl.FRAGMENT_SHADER, frag));
+    gl.linkProgram(p);
+    if (!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+    const u = {};
+    const n = gl.getProgramParameter(p, gl.ACTIVE_UNIFORMS);
+    for (let i = 0; i < n; i++) {
+      const name = gl.getActiveUniform(p, i).name.replace('[0]', '');
+      u[name] = gl.getUniformLocation(p, name);
+    }
+    return { p, u };
+  }
+
+  const trailProg = program(TRAIL_FRAG);
+  const mainProg = program(MAIN_FRAG);
+  gl.bindVertexArray(gl.createVertexArray());
+
+  // ---------------------------------------------------------------- resources
+  let W = 0, H = 0, dpr = 1, cellPx = [6, 10], cellCss = [6, 10];
+  let trail = [], trailW = 0, trailH = 0, ping = 0;
+  let atlasTex = null, glyphN = 1;
+
+  function makeTarget(w, h) {
+    const tex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.texImage2D(gl.TEXTURE_2D, 0, HDR ? gl.RGBA16F : gl.RGBA8, w, h, 0, gl.RGBA,
+      HDR ? gl.HALF_FLOAT : gl.UNSIGNED_BYTE, null);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    const fb = gl.createFramebuffer();
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fb);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    gl.viewport(0, 0, w, h);
+    HDR ? gl.clearColor(0, 0, 0, 1) : gl.clearColor(0.5, 0.5, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    return { tex, fb };
+  }
+
+  // Glyph atlas rendered at exact device-pixel cell size, sorted by ink coverage.
+  function buildAtlas(cw, ch) {
+    const chars = [' ', '.', ',', ':', '-', '~', '+', '=', '*', '1', '0', '#', '%', '@'];
+    const c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    const font = `${Math.max(6, Math.round(ch * 0.8))}px ui-monospace, Menlo, Consolas, monospace`;
+    const measured = chars.map(chr => {
+      x.fillStyle = '#000'; x.fillRect(0, 0, cw, ch);
+      x.fillStyle = '#fff'; x.font = font; x.textAlign = 'center'; x.textBaseline = 'middle';
+      x.fillText(chr, cw / 2, ch / 2 + ch * 0.04);
+      const d = x.getImageData(0, 0, cw, ch).data;
+      let s = 0; for (let i = 0; i < d.length; i += 4) s += d[i];
+      return { chr, s };
+    }).sort((a, b) => a.s - b.s);
+
+    glyphN = measured.length + 1;               // + solid bar
+    const a = document.createElement('canvas');
+    a.width = cw * glyphN; a.height = ch;
+    const ax = a.getContext('2d');
+    ax.fillStyle = '#000'; ax.fillRect(0, 0, a.width, a.height);
+    ax.fillStyle = '#fff'; ax.font = font; ax.textAlign = 'center'; ax.textBaseline = 'middle';
+    measured.forEach((m, i) => ax.fillText(m.chr, i * cw + cw / 2, ch / 2 + ch * 0.04));
+    const inset = Math.round(ch * 0.12);
+    ax.fillRect((glyphN - 1) * cw, inset, cw, ch - inset * 2);
+
+    if (atlasTex) gl.deleteTexture(atlasTex);
+    atlasTex = gl.createTexture();
+    gl.bindTexture(gl.TEXTURE_2D, atlasTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, false);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA8, gl.RGBA, gl.UNSIGNED_BYTE, a);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+  }
+
+  function resize() {
+    const r = hero.getBoundingClientRect();
+    dpr = Math.min(window.devicePixelRatio || 1, CFG.maxDpr);
+    const w = Math.max(1, Math.round(r.width * dpr));
+    const h = Math.max(1, Math.round(r.height * dpr));
+    if (w === W && h === H) return;
+    W = w; H = h;
+    canvas.width = overlay.width = W;
+    canvas.height = overlay.height = H;
+    cellPx = [Math.max(2, Math.round(CFG.cell[0] * dpr)), Math.max(3, Math.round(CFG.cell[1] * dpr))];
+    cellCss = [cellPx[0] / dpr, cellPx[1] / dpr];
+    buildAtlas(cellPx[0], cellPx[1]);
+
+    trail.forEach(t => { gl.deleteTexture(t.tex); gl.deleteFramebuffer(t.fb); });
+    trailW = Math.max(2, Math.round(W * CFG.trailScale));
+    trailH = Math.max(2, Math.round(H * CFG.trailScale));
+    trail = [makeTarget(trailW, trailH), makeTarget(trailW, trailH)];
+  }
+
+  // ---------------------------------------------------------------- input
+  // Raw pointer samples (CSS px, top-left), consumed once per frame.
+  let pending = [];
+  let lastPt = null;          // last consumed point, CSS px
+  let pointer = null;         // most recent pointer position
+  let inside = false;
+  let lastInput = -1e9;
+
+  function pushEvent(e) {
+    const r = hero.getBoundingClientRect();
+    const list = e.getCoalescedEvents ? e.getCoalescedEvents() : null;
+    const src = list && list.length ? list : [e];
+    for (const ev of src) pending.push([ev.clientX - r.left, ev.clientY - r.top]);
+    pointer = pending[pending.length - 1];
+    inside = true;
+    lastInput = performance.now();
+  }
+  // pointerrawupdate fires ahead of pointermove (not rAF-aligned) in Chromium.
+  const moveEvt = 'onpointerrawupdate' in window ? 'pointerrawupdate' : 'pointermove';
+  hero.addEventListener(moveEvt, pushEvent, { passive: true });
+  hero.addEventListener('pointerdown', pushEvent, { passive: true });
+  hero.addEventListener('pointerleave', () => { inside = false; lastPt = null; });
+
+  // ---------------------------------------------------------------- blobs
+  let blobs = [], nextId = 1;
+
+  function updateBlobs(p, v, dt, cssW, cssH) {
+    const TRACK_R = 0.09 * cssH, MIN_SPACING = 0.07 * cssH;
+    const fed = new Set();
+    if (p && v > 0.25) {
+      let best = null, bd = Infinity;
+      for (const b of blobs) {
+        const d = Math.hypot(b.x - p[0], b.y - p[1]);
+        if (d < bd) { bd = d; best = b; }
+      }
+      const target = Math.min(120, 26 + v * 28);
+      if (best && bd < TRACK_R) {
+        best.x += (p[0] - best.x) * 0.35;
+        best.y += (p[1] - best.y) * 0.35;
+        best.target = Math.max(best.target, target);
+        best.life = 1; fed.add(best);
+      } else if (!best || bd > MIN_SPACING) {
+        if (blobs.length >= CFG.maxBlobs) {
+          blobs.sort((a, b) => a.life - b.life);
+          blobs.shift();
+        }
+        const b = { id: nextId++, x: p[0], y: p[1], size: 8, target, life: 1, aspect: 0.7 + Math.random() * 0.5 };
+        blobs.push(b); fed.add(b);
+      }
+    }
+    const k = 1 - Math.exp(-dt * 12);
+    for (const b of blobs) {
+      if (!fed.has(b)) b.life -= dt / 1.6;
+      b.target *= Math.exp(-dt * 0.8);
+      b.size += (Math.max(b.target, 20) - b.size) * k;
+    }
+    blobs = blobs.filter(b => b.life > 0);
+  }
+
+  function drawBlobs(cssW, cssH) {
+    octx.setTransform(1, 0, 0, 1, 0, 0);
+    octx.clearRect(0, 0, W, H);
+    if (!blobs.length) return;
+    octx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    const [cw, ch] = cellCss;
+    const sorted = [...blobs].sort((a, b) => a.id - b.id);
+    const px = 1 / dpr;
+    const alpha = b => Math.min(1, b.life * 2.5);
+
+    octx.lineWidth = px;
+    octx.strokeStyle = '#fff';
+    for (let i = 1; i < sorted.length; i++) {
+      const a = sorted[i - 1], b = sorted[i];
+      octx.globalAlpha = Math.min(alpha(a), alpha(b)) * 0.9;
+      octx.beginPath(); octx.moveTo(a.x, a.y); octx.lineTo(b.x, b.y); octx.stroke();
+    }
+
+    octx.font = '10px ui-monospace, Menlo, Consolas, monospace';
+    octx.textBaseline = 'bottom';
+    for (const b of sorted) {
+      const a = alpha(b);
+      const w = b.size, h = b.size * b.aspect;
+      // snap to the glyph grid so boxes feel native to the ASCII field
+      const x0 = Math.floor((b.x - w / 2) / cw) * cw;
+      const y0 = Math.floor((b.y - h / 2) / ch) * ch;
+      const x1 = Math.ceil((b.x + w / 2) / cw) * cw;
+      const y1 = Math.ceil((b.y + h / 2) / ch) * ch;
+      octx.globalAlpha = a * 0.15;
+      octx.fillStyle = '#fff';
+      octx.fillRect(x0, y0, x1 - x0, y1 - y0);
+      octx.globalAlpha = a;
+      octx.strokeRect(x0 + px / 2, y0 + px / 2, x1 - x0 - px, y1 - y0 - px);
+      octx.fillRect(b.x - 2, b.y - px / 2, 4, px);
+      octx.fillRect(b.x - px / 2, b.y - 2, px, 4);
+      const label = `${String(b.id).padStart(2, '0')}  ${(b.x / cssW).toFixed(3)} ${(b.y / cssH).toFixed(3)}`;
+      octx.fillText(label, x0, y0 - 3);
+    }
+    octx.globalAlpha = 1;
+  }
+
+  // ---------------------------------------------------------------- loop
+  let raf = 0, running = false, last = 0, time = 0;
+  const ptsBuf = new Float32Array(32);
+
+  function frame(now) {
+    raf = requestAnimationFrame(frame);
+    const dt = Math.min((now - last) / 1000, 1 / 20);
+    last = now;
+    time += dt * CFG.speed * (reduceMotion ? 0.3 : 1);
+
+    const cssW = W / dpr, cssH = H / dpr;
+
+    // ghost cursor when idle
+    if (CFG.autoplay && !reduceMotion && now - lastInput > 2500 && !inside) {
+      const s = now / 1000;
+      const g = [cssW * (0.5 + 0.34 * Math.sin(s * 0.53)), cssH * (0.5 + 0.3 * Math.sin(s * 0.91 + 1.3))];
+      pending.push(g);
+      pointer = g;
+    } else if (!inside && pending.length === 0) {
+      pointer = null;
+    }
+
+    // gather this frame's path: last point + new samples, capped at 16
+    let path = pending; pending = [];
+    if (lastPt && path.length) path = [lastPt, ...path];
+    if (path.length > 16) {
+      const step = (path.length - 1) / 15, out = [];
+      for (let i = 0; i < 16; i++) out.push(path[Math.round(i * step)]);
+      path = out;
+    }
+    let len = 0;
+    for (let i = 1; i < path.length; i++)
+      len += Math.hypot(path[i][0] - path[i - 1][0], path[i][1] - path[i - 1][1]);
+    if (path.length) lastPt = path[path.length - 1];
+    const v = len / cssH / Math.max(dt, 1 / 240);       // viewport-heights per second
+    const strength = Math.min(1, v / 1.5);
+
+    for (let i = 0; i < path.length; i++) {
+      ptsBuf[i * 2] = path[i][0] / cssW;
+      ptsBuf[i * 2 + 1] = 1 - path[i][1] / cssH;
+    }
+
+    // trail pass
+    const src = trail[ping], dst = trail[ping ^ 1];
+    gl.bindFramebuffer(gl.FRAMEBUFFER, dst.fb);
+    gl.viewport(0, 0, trailW, trailH);
+    gl.useProgram(trailProg.p);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, src.tex);
+    gl.uniform1i(trailProg.u.uPrev, 0);
+    gl.uniform2fv(trailProg.u.uPts, ptsBuf);
+    gl.uniform1i(trailProg.u.uN, path.length);
+    gl.uniform1f(trailProg.u.uAspect, W / H);
+    gl.uniform1f(trailProg.u.uRadius, CFG.trailRadius);
+    gl.uniform1f(trailProg.u.uDecay, Math.pow(CFG.trailDecay, dt * 60));
+    gl.uniform1f(trailProg.u.uSpeed, strength);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+    ping ^= 1;
+
+    // main pass
+    gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+    gl.viewport(0, 0, W, H);
+    gl.useProgram(mainProg.p);
+    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, dst.tex);
+    gl.uniform1i(mainProg.u.uTrail, 0);
+    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, atlasTex);
+    gl.uniform1i(mainProg.u.uAtlas, 1);
+    gl.uniform2f(mainProg.u.uRes, W, H);
+    gl.uniform2f(mainProg.u.uCellPx, cellPx[0], cellPx[1]);
+    gl.uniform1f(mainProg.u.uTime, time);
+    gl.uniform1f(mainProg.u.uGlyphN, glyphN);
+    gl.uniform1f(mainProg.u.uLens, CFG.lens);
+    gl.uniform1f(mainProg.u.uAspect, W / H);
+    gl.uniform1f(mainProg.u.uDisplace, CFG.displace);
+    gl.uniform3f(mainProg.u.uBg, CFG.bg[0] / 255, CFG.bg[1] / 255, CFG.bg[2] / 255);
+    gl.uniform3f(mainProg.u.uInk, CFG.ink[0] / 255, CFG.ink[1] / 255, CFG.ink[2] / 255);
+    gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+    updateBlobs(pointer, v, dt, cssW, cssH);
+    drawBlobs(cssW, cssH);
+  }
+
+  function start() {
+    if (running) return;
+    running = true; last = performance.now();
+    raf = requestAnimationFrame(frame);
+  }
+  function stop() { running = false; cancelAnimationFrame(raf); }
+
+  let visible = true;
+  const sync = () => (visible && !document.hidden ? start() : stop());
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; sync(); }).observe(hero);
+  document.addEventListener('visibilitychange', sync);
+  new ResizeObserver(resize).observe(hero);
+  resize();
+  sync();
+})();
+</script>
+</body>
+</html>
